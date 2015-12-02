@@ -7,12 +7,16 @@
 #include "imgfeatures.h"
 #include "utils.h"
 
-#include "opencv\cxcore.h"
 #include "opencv\cv.h"
+#include "opencv\cxcore.h"
+
 
 /************************* Local Function Prototypes *************************/
 static IplImage* create_init_img(IplImage*, int, double);
 static IplImage* convert_to_gray32(IplImage*);
+static IplImage*** build_gauss_pyr(IplImage*, int, int, double);
+static IplImage* downsample(IplImage*);
+static IplImage*** build_dog_pyr(IplImage*, int, int);
 
 
 /*********************** Functions prototyped in sift.h **********************/
@@ -63,14 +67,22 @@ int _sift_features( IplImage* img, struct feature** feat, int intvls,
 		fatal_error("NULL pointer error, %s, line %d", __FILE__, __LINE__);
 	}
 
-	if (!feat)
+	/*if (!feat)
 	{
 		fatal_error("NULL pointer error, %s, line %d", __FILE__, __LINE__);
-	}
+	}*/
 
 	//#步骤一：建立尺度空间，即建立高斯查分（DoG）金字塔dog_pyr
 	//转换为32位灰度图并归一化，然后进行一次高斯平滑
 	init_img = create_init_img(img, img_dbl, sigma);
+	//计算高斯金字塔的组数octvs
+	octvs = log(MIN(init_img->width, init_img->height)) / log(2) - 2;
+	//在每一层的顶层用高斯模糊生成3幅图像，所以高斯金字塔每组有intvls+3层，DOG金字塔每组有intvls+2层
+	//建立高斯金字塔gauss_pyr,是一个octvs*（intvls+3）的图像数组
+	gauss_pyr = build_gauss_pyr(init_img, octvs, intvls, sigma);
+
+	//建立高斯差分（DoG）金字塔dog_pyr
+	dog_pyr = build_dog_pyr(gauss_pyr, octvs, intvls);
 
 	return n;
 }
@@ -91,7 +103,7 @@ static IplImage* create_init_img(IplImage* img, int img_dbl, double sigma)
 	float sig_diff;
 
 	//调用函数，将输入图像转换为32位灰度图，并归一化
-	//gray = convert_to_gray32(img);
+	gray = convert_to_gray32(img);
 
 	//若设置了将图像放大为原图的2倍
 	if (img_dbl)
@@ -117,6 +129,112 @@ static IplImage* create_init_img(IplImage* img, int img_dbl, double sigma)
 	}
 }
 
+/*根据输入参数建立高斯金字塔
+参数：
+base：输入图像，作为高斯金字塔的基图像
+octvs：高斯金字塔的组数
+intvls：每组的层数
+sigma：初始尺度
+返回值：高斯金字塔，是一个octvs*(intvls+3)的图像数组
+*/
+static IplImage*** build_gauss_pyr(IplImage* base, int octvs, int intvls, double sigma)
+{
+	IplImage*** gauss_pyr;
+	
+	double* sig = calloc(intvls + 3, sizeof(double)); //每层的sigma参数数组
+	double sig_total, sig_prev, k;
+	int i, o;
+
+	//为高斯金字塔gauss_pyr分配空间，共octvs个元素，每个元素是一组图像的首指针
+	gauss_pyr = calloc(octvs, sizeof(IplImage**));
+	//为第i组图像分配空间，共intvls+3个元素
+	for (i = 0; i< octvs; ++i) 
+		gauss_pyr[i] = calloc(intvls + 3, sizeof(IplImage* ));
+
+	/*	计算sigma的公式
+		sigma_{total}^2 = sigma_{i}^2 + sigma_{i-1}^2   */
+	sig[0] = sigma;	//初试尺度
+	k = pow(2.0, 1.0 / intvls);
+
+	for (i = 1; i < intvls +3; ++i) 
+	{
+		sig_prev = pow(k, i - 1) * sigma;
+		sig_total = sig_prev * k;
+		sig[i] = sqrt(sig_total * sig_total - sig_prev * sig_prev);
+	}
+
+	//每组每层生成高斯金字塔
+	for (o = 0; o < octvs; ++o) 
+		for( i = 0; i < intvls + 3; ++i) 
+		{
+			if (o == 0 && i == 0)	//第0组，第0层，就是原图像
+				gauss_pyr[o][i] = cvCloneImage(base);
+			else if (i == 0)	//新的一组的首层图像是由上一组最后一层图像向下采样得到的
+				gauss_pyr[o][i] = downsample(gauss_pyr[o-1][intvls]);
+			else	//对上层图像进行高斯平滑得到当前层图像
+			{
+				//创建图像
+				gauss_pyr[o][i] = cvCreateImage(cvGetSize(gauss_pyr[o][i-1]), IPL_DEPTH_32F, 1);
+				//对上一层图像gauss_pyr[o][i-1]进行参数为sig[i]的高斯平滑
+				cvSmooth(gauss_pyr[o][i-1], gauss_pyr[o][i], CV_GAUSSIAN, 0, 0, sig[i], sig[i]);
+			}
+		}
+
+	free(sig);	//释放sigma参数数组
+
+	return gauss_pyr;
+}
+
+/*对输入图像做下采样生成其四分之一大小的图像(每个维度上减半)，使用最近邻差值方法
+参数：
+img：输入图像
+返回值：下采样后的图像
+*/
+static IplImage* downsample(IplImage* img)
+{
+	//下采样图像
+	IplImage* smaller = cvCreateImage(cvSize(img->width / 2, img->height / 2), img->depth, img->nChannels);
+	cvResize(img, smaller, CV_INTER_NN);	//最近邻插值
+	
+	return smaller;
+}
+
+/*通过对高斯金字塔中每相邻两层图像相减来建立高斯差分金字塔
+参数：
+gauss_pyr：高斯金字塔
+octvs：组数
+intvls：每组的层数
+返回值：高斯差分金字塔，是一个octvs*(intvls+2)的图像数组
+*/
+static IplImage*** build_dog_pyr(IplImage*** gauss_pyr, int octvs, int intvls)
+{
+	IplImage*** dog_pyr;
+	int i, o;
+
+	//为高斯差分金字塔分配空间，共octvs个元素，每个元素是一组图像的首指针
+	dog_pyr = calloc(octvs, sizeof(IplImage**));
+	//为第i组图像dog_pyr[i]分配空间，共intvls+2个元素
+	for (i = 0; i < octvs; ++i)
+	{
+		dog_pyr[i] = calloc(intvls + 2, sizeof(IplImage*));
+	}
+
+	//每组每层计算差分图像
+	for (o = 0; o < octvs; ++o)
+		for (i = 0; i < intvls + 2; ++i)
+		{
+			//创建DoG金字塔的第o组第i层的差分图像
+			dog_pyr[o][i] = cvCreateImage(cvGetSize(gauss_pyr[o][i]), IPL_DEPTH_32F, 1);
+			//将高斯金字塔的第o组第i+1层图像减去第i层图像
+			cvSub(gauss_pyr[o][i+1], gauss_pyr[o][i], dog_pyr[o][i], NULL);
+		}
+
+	return dog_pyr;	//返回高斯差分金字塔
+}
+
+
+
+
 /*将输入图像转换为32位灰度图,并进行归一化
 参数：
 img：输入图像，3通道8位彩色图(BGR)或8位灰度图
@@ -138,7 +256,7 @@ static IplImage* convert_to_gray32(IplImage* img)
 		cvCvtColor(img, gray8, CV_BGR2GRAY);  //将原图转换为8位单通道图像
 	}
 
-	//将8位当通道图像转换为32位单通道，并归一化（除以255）
+	//将8位单通道图像转换为32位单通道，并归一化（除以255）
 	cvConvertScale(gray8, gray32, 1.0 / 255.0, 0);
 
 	cvReleaseImage(&gray8);

@@ -18,5 +18,7 @@ extern "C"
 
 int main ()
 {
-	sift_features(NULL,NULL);
+	string name = "1.jpg";
+	IplImage* img = cvLoadImage(name.c_str());
+	sift_features(img,NULL);
 }
