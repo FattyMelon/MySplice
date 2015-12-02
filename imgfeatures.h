@@ -55,7 +55,7 @@ struct feature
 	double scl;						//LOWE特征点的尺度
 	double ori;						//LOWE特征点的方向
 	int d;							//特征描述子的维数，一般为128
-	double descr[FEATURE_MAX_D];	//128维的特征描述子
+	double descr[FEATURE_MAX_D];	//128维的特征描述字
 	int type;						//特征点的类型，OXFD或LOWE
 	int category;					//特征点的种类
 	struct feature* fwd_match;		//

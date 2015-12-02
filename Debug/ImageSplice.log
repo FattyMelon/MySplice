@@ -1,0 +1,23 @@
+﻿生成启动时间为 2015/12/2 星期三 下午 1:15:27。
+     1>项目“C:\Users\Administrator\Documents\Visual Studio 2010\Projects\ImageSplice\ImageSplice\ImageSplice.vcxproj”在节点 2 上(build 个目标)。
+     1>InitializeBuildStatus:
+         正在创建“Debug\ImageSplice.unsuccessfulbuild”，因为已指定“AlwaysCreate”。
+       ClCompile:
+         f:\visual stdio\VC\bin\CL.exe /c /ZI /nologo /W3 /WX- /Od /Oy- /D WIN32 /D _DEBUG /D _CONSOLE /D _UNICODE /D UNICODE /Gm /EHsc /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Fo"Debug\\" /Fd"Debug\vc100.pdb" /Gd /TC /analyze- /errorReport:prompt sift.c utils.c
+         utils.c
+         sift.c
+     1>c:\users\administrator\documents\visual studio 2010\projects\imagesplice\imagesplice\sift.c(57): warning C4101: “i”: 未引用的局部变量
+     1>c:\users\administrator\documents\visual studio 2010\projects\imagesplice\imagesplice\sift.c(54): warning C4101: “dog_pyr”: 未引用的局部变量
+     1>c:\users\administrator\documents\visual studio 2010\projects\imagesplice\imagesplice\sift.c(57): warning C4101: “octvs”: 未引用的局部变量
+     1>c:\users\administrator\documents\visual studio 2010\projects\imagesplice\imagesplice\sift.c(55): warning C4101: “storage”: 未引用的局部变量
+     1>c:\users\administrator\documents\visual studio 2010\projects\imagesplice\imagesplice\sift.c(54): warning C4101: “gauss_pyr”: 未引用的局部变量
+     1>c:\users\administrator\documents\visual studio 2010\projects\imagesplice\imagesplice\sift.c(56): warning C4101: “features”: 未引用的局部变量
+     1>c:\users\administrator\documents\visual studio 2010\projects\imagesplice\imagesplice\sift.c(98): warning C4244: “=”: 从“double”转换到“float”，可能丢失数据
+     1>c:\users\administrator\documents\visual studio 2010\projects\imagesplice\imagesplice\sift.c(99): error C2143: 语法错误 : 缺少“)”(在“类型”的前面)
+     1>c:\users\administrator\documents\visual studio 2010\projects\imagesplice\imagesplice\sift.c(99): error C2198: “cvCreateImage”: 用于调用的参数太少
+         正在生成代码...
+     1>已完成生成项目“C:\Users\Administrator\Documents\Visual Studio 2010\Projects\ImageSplice\ImageSplice\ImageSplice.vcxproj”(build 个目标)的操作 - 失败。
+
+生成失败。
+
+已用时间 00:00:01.15
