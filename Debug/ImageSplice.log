@@ -1,19 +1,16 @@
-﻿生成启动时间为 2015/12/2 星期三 下午 10:34:26。
+﻿生成启动时间为 2015/12/3 星期四 下午 1:49:49。
      1>项目“C:\Users\Administrator\Documents\Visual Studio 2010\Projects\ImageSplice\ImageSplice\ImageSplice.vcxproj”在节点 2 上(build 个目标)。
      1>InitializeBuildStatus:
-         正在创建“Debug\ImageSplice.unsuccessfulbuild”，因为已指定“AlwaysCreate”。
+         正在对“Debug\ImageSplice.unsuccessfulbuild”执行 Touch 任务。
        ClCompile:
          f:\visual stdio\VC\bin\CL.exe /c /ZI /nologo /W3 /WX- /Od /Oy- /D WIN32 /D _DEBUG /D _CONSOLE /D _UNICODE /D UNICODE /Gm /EHsc /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Fo"Debug\\" /Fd"Debug\vc100.pdb" /Gd /TC /analyze- /errorReport:prompt sift.c
          sift.c
-     1>c:\users\administrator\documents\visual studio 2010\projects\imagesplice\imagesplice\sift.c(82): warning C4244: “=”: 从“double”转换到“int”，可能丢失数据
-     1>c:\users\administrator\documents\visual studio 2010\projects\imagesplice\imagesplice\sift.c(88): warning C4047: “函数”:“IplImage *”与“IplImage ***”的间接级别不同
-     1>c:\users\administrator\documents\visual studio 2010\projects\imagesplice\imagesplice\sift.c(88): warning C4024: “build_dog_pyr”: 形参和实参 1 的类型不同
-     1>c:\users\administrator\documents\visual studio 2010\projects\imagesplice\imagesplice\sift.c(65): warning C4101: “i”: 未引用的局部变量
-     1>c:\users\administrator\documents\visual studio 2010\projects\imagesplice\imagesplice\sift.c(63): warning C4101: “storage”: 未引用的局部变量
-     1>c:\users\administrator\documents\visual studio 2010\projects\imagesplice\imagesplice\sift.c(64): warning C4101: “features”: 未引用的局部变量
-     1>c:\users\administrator\documents\visual studio 2010\projects\imagesplice\imagesplice\sift.c(114): warning C4244: “=”: 从“double”转换到“float”，可能丢失数据
-     1>c:\users\administrator\documents\visual studio 2010\projects\imagesplice\imagesplice\sift.c(127): warning C4244: “=”: 从“double”转换到“float”，可能丢失数据
-     1>c:\users\administrator\documents\visual studio 2010\projects\imagesplice\imagesplice\sift.c(213): warning C4028: 形参 1 与声明不同
+     1>c:\users\administrator\documents\visual studio 2010\projects\imagesplice\imagesplice\sift.c(90): warning C4244: “=”: 从“double”转换到“int”，可能丢失数据
+     1>c:\users\administrator\documents\visual studio 2010\projects\imagesplice\imagesplice\sift.c(73): warning C4101: “i”: 未引用的局部变量
+     1>c:\users\administrator\documents\visual studio 2010\projects\imagesplice\imagesplice\sift.c(130): warning C4244: “=”: 从“double”转换到“float”，可能丢失数据
+     1>c:\users\administrator\documents\visual studio 2010\projects\imagesplice\imagesplice\sift.c(143): warning C4244: “=”: 从“double”转换到“float”，可能丢失数据
+     1>c:\users\administrator\documents\visual studio 2010\projects\imagesplice\imagesplice\sift.c(330): warning C4716: “scale_space_extrema”: 必须返回一个值
+     1>c:\users\administrator\documents\visual studio 2010\projects\imagesplice\imagesplice\sift.c(364): warning C4715: “is_extremum”: 不是所有的控件路径都返回值
          所有输出均为最新。
        ManifestResourceCompile:
          所有输出均为最新。
@@ -36,4 +33,4 @@
 
 生成成功。
 
-已用时间 00:00:00.54
+已用时间 00:00:00.95

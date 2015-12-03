@@ -25,5 +25,6 @@ void fatal_error(char* format, ...)
 	fprintf(stderr, format);
 
 	fprintf(stderr, "\n");
+
 	abort();
 }

@@ -20,6 +20,37 @@
 #define ABS(x) (((x) > 0) ? (-x) : (x)) 
 #endif
 
+/***************************** Inline Functions ******************************/
+
+//从8位图中获取像素点
+static __inline int pixval8(IplImage* img, int r, int c)
+{
+	return (int)(((uchar*)(img->imageData + img->widthStep*r))[c]);
+}
+
+//设置8位图像素点
+static __inline void setpix8(IplImage* img, int r, int c, uchar val)
+{
+	((uchar*)(img->imageData + img->widthStep*r))[c] = val;
+}
+
+/*从32位浮点型单通道图像中获取指定坐标的像素值，内联函数
+参数：
+img：输入图像
+r：行坐标
+c：列坐标
+返回值：坐标(c,r)处(r行c列)的像素值
+*/
+static __inline float pixval32f(IplImage* img, int r, int c)
+{
+	return ((float*)(img->imageData + img->widthStep * r))[c];
+}
+
+//设置32位图的像素点
+static __inline void setpix32f(IplImage* img, int r, int c, float val)
+{
+	((float*)(img->imageData + img->widthStep * r))[c] = val;
+}
 
 /**************************** Function Prototypes ****************************/
 
