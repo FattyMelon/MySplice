@@ -1,16 +1,15 @@
-﻿生成启动时间为 2015/12/3 星期四 下午 1:49:49。
+﻿生成启动时间为 2015/12/3 星期四 下午 2:48:34。
      1>项目“C:\Users\Administrator\Documents\Visual Studio 2010\Projects\ImageSplice\ImageSplice\ImageSplice.vcxproj”在节点 2 上(build 个目标)。
      1>InitializeBuildStatus:
          正在对“Debug\ImageSplice.unsuccessfulbuild”执行 Touch 任务。
        ClCompile:
          f:\visual stdio\VC\bin\CL.exe /c /ZI /nologo /W3 /WX- /Od /Oy- /D WIN32 /D _DEBUG /D _CONSOLE /D _UNICODE /D UNICODE /Gm /EHsc /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Fo"Debug\\" /Fd"Debug\vc100.pdb" /Gd /TC /analyze- /errorReport:prompt sift.c
          sift.c
-     1>c:\users\administrator\documents\visual studio 2010\projects\imagesplice\imagesplice\sift.c(90): warning C4244: “=”: 从“double”转换到“int”，可能丢失数据
-     1>c:\users\administrator\documents\visual studio 2010\projects\imagesplice\imagesplice\sift.c(73): warning C4101: “i”: 未引用的局部变量
-     1>c:\users\administrator\documents\visual studio 2010\projects\imagesplice\imagesplice\sift.c(130): warning C4244: “=”: 从“double”转换到“float”，可能丢失数据
-     1>c:\users\administrator\documents\visual studio 2010\projects\imagesplice\imagesplice\sift.c(143): warning C4244: “=”: 从“double”转换到“float”，可能丢失数据
-     1>c:\users\administrator\documents\visual studio 2010\projects\imagesplice\imagesplice\sift.c(330): warning C4716: “scale_space_extrema”: 必须返回一个值
-     1>c:\users\administrator\documents\visual studio 2010\projects\imagesplice\imagesplice\sift.c(364): warning C4715: “is_extremum”: 不是所有的控件路径都返回值
+     1>c:\users\administrator\documents\visual studio 2010\projects\imagesplice\imagesplice\sift.c(91): warning C4244: “=”: 从“double”转换到“int”，可能丢失数据
+     1>c:\users\administrator\documents\visual studio 2010\projects\imagesplice\imagesplice\sift.c(74): warning C4101: “i”: 未引用的局部变量
+     1>c:\users\administrator\documents\visual studio 2010\projects\imagesplice\imagesplice\sift.c(133): warning C4244: “=”: 从“double”转换到“float”，可能丢失数据
+     1>c:\users\administrator\documents\visual studio 2010\projects\imagesplice\imagesplice\sift.c(146): warning C4244: “=”: 从“double”转换到“float”，可能丢失数据
+     1>c:\users\administrator\documents\visual studio 2010\projects\imagesplice\imagesplice\sift.c(375): warning C4715: “is_extremum”: 不是所有的控件路径都返回值
          所有输出均为最新。
        ManifestResourceCompile:
          所有输出均为最新。
@@ -33,4 +32,4 @@
 
 生成成功。
 
-已用时间 00:00:00.95
+已用时间 00:00:00.84

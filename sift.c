@@ -28,7 +28,8 @@ static struct feature* new_feature( void);
 static int is_too_edge_like(IplImage*, int, int, int);
 
 
-//static void calc_feature_scales( CvSeq*, double, int );
+static void calc_feature_scales( CvSeq*, double, int );
+static void adjust_for_img_dbl(CvSeq*);
 
 /*********************** Functions prototyped in sift.h **********************/
 
@@ -101,7 +102,9 @@ int _sift_features( IplImage* img, struct feature** feat, int intvls,
 	//在尺度空间中检测极值点
 	features = scale_space_extrema(dog_pyr, octvs, intvls, contr_thr, curv_thr, storage);
 	//计算特征点序列features中每个特征点的尺度
-	//calc_feature_scales(features, sigma, intvls);
+	calc_feature_scales(features, sigma, intvls);
+	if(img_dbl)
+		adjust_for_img_dbl(features);
 
 	return n;
 }
@@ -323,10 +326,18 @@ static CvSeq* scale_space_extrema(IplImage*** dog_pyr, int octvs, int intvls,
 							if (feat)
 							{
 								ddata = feat_detection_data(feat);
-								//if(!is_too)
+								//去除边缘响应
+								if(!is_too_edge_like(dog_pyr[ddata->octv][ddata->intvl], ddata->r, ddata->c, curv_thr))
+								{
+									cvSeqPush(features, feat);
+								}
+								else
+									free(ddata);
+								free(feat);
 							}
 						}
 					}
+	return features;					
 }
 
 /*通过在尺度空间中将一个像素点的值与其周围3*3*3邻域内的点比较来决定此点是否极值点(极大值或极小都行)
@@ -524,7 +535,7 @@ static CvMat* hessian_3D(IplImage*** dog_pyr, int octv, int intvl,
 
 	v = pixval32f(dog_pyr[octv][intvl], r, c);	//该点的像素值
 
-	//用差分近似代替倒数
+	//用差分近似代替导数
 	//dxx = f(i+1,j) - 2f(i,j) + f(i-1,j)
 	//dyy = f(i,j+1) - 2f(i,j) + f(i,j-1)
 	dxx = ( pixval32f( dog_pyr[octv][intvl], r, c+1 ) + 
@@ -609,4 +620,87 @@ static struct feature* new_feature(void)
 	feat->type = FEATURE_LOWE;
 
 	return feat;
+}
+
+/*去除边缘响应，即通过计算主曲率比值判断某点是否边缘点
+参数：
+dog_img：此特征点所在的DoG图像
+r：特征点所在的行
+c：特征点所在的列
+cur_thr：主曲率比值的阈值，用来去除边缘特征
+返回值：0：此点是非边缘点；1：此点是边缘点
+*/
+static int is_too_edge_like(IplImage* dog_img, int r, int c, int curv_thr)
+{
+	double d, dxx, dyy, dxy, tr, det;
+
+	d = pixval32f(dog_img, r, c);
+
+	//用差分近似代替偏导，求出海森矩阵的几个元素值
+    /*  / dxx  dxy \
+        \ dxy  dyy /   */
+	dxx = pixval32f( dog_img, r, c+1 ) + pixval32f( dog_img, r, c-1 ) - 2 * d;
+	dyy = pixval32f( dog_img, r+1, c ) + pixval32f( dog_img, r-1, c ) - 2 * d;
+	dxy = ( pixval32f(dog_img, r+1, c+1) - pixval32f(dog_img, r+1, c-1) -
+		pixval32f(dog_img, r-1, c+1) + pixval32f(dog_img, r-1, c-1) ) / 4.0;
+	tr = dxx + dyy;//海森矩阵的迹
+	det = dxx * dyy - dxy * dxy;//海森矩阵的行列式
+
+	//若行列式为负，表示曲率有不同的符号，去除此点
+	//1代表点是边缘点，0代表点不是边缘点
+	if (det <= 0)
+		return 1;
+	//通过式子：(r+1)^2/r 判断主曲率的比值是否满足条件，若小于阈值，表明不是边缘点
+	if (tr * tr / det < (curv_thr + 1.0)*(curv_thr + 1.0) / curv_thr)
+		return 0;
+	return 1;
+}
+
+/*计算特征点序列中每个特征点的尺度
+参数：
+features：特征点序列
+sigma：初始高斯平滑参数，即初始尺度
+intvls：尺度空间中每组的层数
+*/
+static void calc_feature_scales( CvSeq* features, double sigma, int intvls )
+{
+	struct feature* feat;
+	struct detection_data* ddata;
+	double intvl;
+	int i, n;
+
+	n = features->total;	//总的特征点个数
+
+	for (i = 0; i < n; ++i) 
+	{
+		feat = CV_GET_SEQ_ELEM(struct feature, features, i);
+		ddata = feat_detection_data(feat);
+		//根据公式计算特征点的尺度
+		intvl = ddata->intvl + ddata->subintvl;
+		feat->scl = sigma * pow(2.0, ddata->octv + intvl / intvls);
+		ddata->scl_octv = sigma * pow(2.0, intvl / intvls);
+	}
+}
+
+/*将特征点序列中每个特征点的坐标减半(当设置了将图像放大为原图的2倍时，特征点检测完之后调用)
+参数：
+features：特征点序列
+*/
+static void adjust_for_img_dbl(CvSeq* features)
+{
+	struct feature* feat;
+	int i, n;
+
+	n = features->total;
+
+	for (i = 0; i < n; ++i)
+	{
+		feat = CV_GET_SEQ_ELEM(struct feature, features, i);
+		//将特征点的x,y坐标和尺度都减半
+		feat->x /= 2.0;
+		feat->y /= 2.0;
+		feat->scl /= 2.0;
+		feat->img_pt.x /= 2.0;
+		feat->img_pt.y /= 2.0;
+	}
 }
