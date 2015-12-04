@@ -26,10 +26,17 @@ static CvMat* hessian_3D(IplImage***, int, int, int, int);
 static double interp_contr(IplImage***, int, int, int, int, double, double, double);
 static struct feature* new_feature( void);
 static int is_too_edge_like(IplImage*, int, int, int);
-
-
 static void calc_feature_scales( CvSeq*, double, int );
 static void adjust_for_img_dbl(CvSeq*);
+
+
+static void calc_feature_oris( CvSeq*, IplImage*** );
+static double* ori_hist( IplImage*, int, int, int, int, double );
+static int calc_grad_mag_ori( IplImage*, int, int, double*, double* );
+static void smooth_ori_hist( double*, int );
+static double dominant_ori( double*, int );
+static void add_good_ori_features( CvSeq*, double*, int, double, struct feature* );
+static struct feature* clone_feature( struct feature* );
 
 /*********************** Functions prototyped in sift.h **********************/
 
@@ -103,8 +110,14 @@ int _sift_features( IplImage* img, struct feature** feat, int intvls,
 	features = scale_space_extrema(dog_pyr, octvs, intvls, contr_thr, curv_thr, storage);
 	//计算特征点序列features中每个特征点的尺度
 	calc_feature_scales(features, sigma, intvls);
+	//若设置了图像放大，则调整特征点坐标
 	if(img_dbl)
 		adjust_for_img_dbl(features);
+
+	//步骤三：特征点方向赋值
+	//计算每个特征点的梯度直方图，找出其主方向，若一个特征点不止一个主方向，将其分为2个特征点
+	calc_feature_oris(features, gauss_pyr);
+
 
 	return n;
 }
@@ -702,5 +715,193 @@ static void adjust_for_img_dbl(CvSeq* features)
 		feat->scl /= 2.0;
 		feat->img_pt.x /= 2.0;
 		feat->img_pt.y /= 2.0;
+	}
+}
+
+/*计算每个特征点的梯度直方图，找出其主方向，若一个特征点有不止一个主方向，将其分为两个特征点
+参数：
+features：特征点序列
+gauss_pyr：高斯金字塔
+*/
+static void calc_feature_oris( CvSeq* features, IplImage*** gauss_pyr)
+{
+	struct feature* feat;
+	struct detection_data* ddata;
+	double* hist;	//存放梯度直方图的数组
+	double omax;
+	int i, j, n = features->total;	//特征点的个数
+
+	//遍历特征点序列
+	for (i = 0; i < n; ++i)
+	{
+		feat = malloc(sizeof(struct feature));
+		//移除列首元素，放到feat中
+		cvSeqPopFront(features, feat);
+		ddata = feat_detection_data(feat);
+
+		//计算指定像素点的梯度方向直方图
+		hist = ori_hist(gauss_pyr[ddata->octv][ddata->intvl],
+						ddata->r, ddata->c,
+						SIFT_ORI_HIST_BINS,
+						cvRound(SIFT_ORI_RADIUS * ddata->scl_octv),
+						SIFT_ORI_SIG_FCTR * ddata->scl_octv);
+
+		//对梯度直方图进行高斯平滑
+		for (j = 0; j < SIFT_ORI_SMOOTH_PASSES; ++j)
+			smooth_ori_hist(hist, SIFT_ORI_HIST_BINS);
+
+		//查找梯度直方图中主方向的梯度幅值，即查找直方图中最大bin的值,返回给omax
+		omax = dominant_ori(hist, SIFT_ORI_HIST_BINS);
+
+		//当存在一个相当于主峰值能量80%能量的峰值时，则将这个方向认为是该特征点的辅方向
+		add_good_ori_features(features, hist, SIFT_ORI_HIST_BINS,
+								omax * SIFT_ORI_PEAK_RATIO, feat);
+
+		//释放内存
+		free(ddata);
+		free(feat);
+		free(hist);
+	}
+}
+
+/*计算指定像素点的梯度方向直方图，返回存放直方图的数组
+参数：
+img：图像指针
+r：特征点所在的行
+c：特征点所在的列
+n：直方图中柱(bin)的个数，默认是36
+rad：区域半径，在此区域中计算梯度方向直方图
+sigma：计算直翻图时梯度幅值的高斯权重的初始值
+返回值：返回一个n元数组，其中是方向直方图的统计数据
+*/
+static double* ori_hist( IplImage* img, int r, int c, int n, int rad, double sigma)
+{
+	double* hist;	//直方图数组
+	double mag, ori, w, exp_denom, PI2 = CV_PI * 2.0;
+	int bin, i, j;
+
+	//为直方图数组分配空间，共n个元素，n是柱的个数
+	hist = calloc(n, sizeof(double));
+	exp_denom = 2.0 * sigma * sigma;
+
+	//遍历以指定点为中心的搜索区域
+	for(i = -rad; i <= rad; ++i)
+		for(j = -rad; j <= rad; ++j)
+			if(calc_grad_mag_ori(img, r+i, c+j, &mag, &ori))
+			{
+				w = exp(-(i*i + j*j) / exp_denom);	//	该点的梯度幅值权重
+				bin = cvRound(n * (ori + CV_PI) / PI2);
+				bin = (bin < n)? bin : 0;
+				hist[bin] += w * mag;
+			}
+
+	return hist;
+}
+
+/*计算指定点的梯度的幅值magnitude和方向orientation
+参数：
+img：图像指针
+r：特征点所在的行
+c：特征点所在的列
+mag：输出参数，此点的梯度幅值
+ori：输出参数，此点的梯度方向
+返回值：如果指定的点是合法点并已计算出幅值和方向，返回1；否则返回0
+*/
+static int calc_grad_mag_ori( IplImage* img, int r, int c,
+								double* mag, double* ori)
+{
+	double dx, dy;
+
+	//对输入的坐标值进行检查
+	if (r > 0 && r < img->height - 1 && c > 0 && c < img->width - 1)
+	{
+		//用差分近似代替偏导，来求梯度的幅值和方向
+		dx = pixval32f(img, r, c+1) - pixval32f(img, r, c-1);
+		dy = pixval32f(img, r+1, c) - pixval32f(img, r-1, c);
+		*mag = sqrt(dx*dx + dy*dy);
+		*ori = atan2(dy, dx);
+		return 1;
+	}
+	//行列坐标不合法，返回0
+	else
+		return 0;
+}
+
+/*对梯度方向直方图进行高斯平滑，弥补因没有仿射不变性而产生的特征点不稳定的问题
+参数：
+hist：存放梯度直方图的数组
+n：梯度直方图中bin的个数
+*/
+static void smooth_ori_hist(double* hist, int n)
+{
+	double prev, tmp, h0 = hist[0];
+	int i;
+
+	prev = hist[n-1];
+	//类似均值漂移的一种领域平滑，减少突变的影响
+	for(i = 0; i < n; ++i)
+	{
+		tmp = hist[i];
+		hist[i] = 0.25 * prev + 0.5 * hist[i] +
+			0.25 * ((i+1 == n)? h0 : hist[i+1]);
+		prev =tmp;
+	}
+}
+
+/*查找梯度直方图中主方向的梯度幅值，即查找直方图中最大bin的值
+参数：
+hist：存放直方图的数组
+n：直方图中bin的个数
+返回值：返回直方图中最大的bin的值
+*/
+static double dominant_ori(double* hist, int n)
+{
+	double omax;
+	int maxbin, i;
+
+	omax = hist[0];
+	maxbin = 0;
+
+	//遍历直方图，找到最大的bin
+	for (i = 1; i < n; ++i)
+	{
+		if (hist[i] > omax)
+		{
+			omax = hist[i];
+			maxbin = i;
+		}
+	}
+	return omax;
+}
+
+/*若当前特征点的直方图中某个bin的值大于给定的阈值，则新生成一个特征点并添加到特征点序列末尾
+  传入的特征点指针feat是已经从特征点序列features中移除的，所以即使此特征点没有辅方向(第二个大于幅值阈值的方向)
+  也会执行一次克隆feat，对其方向进行插值修正，并插入特征点序列的操作
+参数：
+features：特征点序列
+hist：梯度直方图
+n：直方图中bin的个数
+mag_thr：幅值阈值，若直方图中有bin的值大于此阈值，则增加新特征点
+feat：一个特征点指针，新的特征点克隆自feat，但方向不同
+*/
+static void add_good_ori_features( CvSeq* features, double* hist, int n,
+									double mag_thr, struct feature* feat)
+{
+	struct feature* new_feat;
+	double bin, PI2 = CV_PI * 2.0;
+	int l, r, i;
+
+	//遍历直方图
+	for (i = 0; i < n; ++i)
+	{
+		l = (i == 0)? n-1 : i-1;	//前一个bin的下标
+		r = (i + 1) % n;	//后一个bin的下标
+
+		//若当前的bin是局部极值，并且值大于给定的幅值阈值，则新生成一个新的特征点并添加到特征点序列末尾
+		if (hist[i] > hist[l] && hist[i] > hist[r] && hist[i] >= mag_thr)
+		{
+			//根据左、中、右三个bin的值对当前bin进行直方图插值
+			
+		}
 	}
 }
